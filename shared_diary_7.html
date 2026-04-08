@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pocket Diary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --diary-bg: #f5f0e8;
+    --diary-paper: #faf7f2;
+    --diary-ink: #1a1410;
+    --diary-rule: #c8bfaa;
+    --diary-accent: #5c3d1e;
+    --diary-red: #8b1a1a;
+    --diary-today-bg: #e8d5b0;
+    --diary-header-bg: #2c1810;
+    --diary-header-text: #f0e8d8;
+    --diary-spine: #3d2010;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    font-family: 'Libre Baskerville', Georgia, serif;
+    background: var(--diary-bg);
+    color: var(--diary-ink);
+  }
+
+  .diary-wrap { width: 100%; min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* ── top navigation bar ── */
+  .diary-cover-nav {
+    background: var(--diary-header-bg);
+    color: var(--diary-header-text);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    border-bottom: 3px solid var(--diary-spine);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    gap: 8px;
+  }
+
+  .nav-btn {
+    background: none;
+    border: 1px solid rgba(240,232,216,0.3);
+    color: var(--diary-header-text);
+    padding: 5px 14px;
+    font-family: 'Libre Baskerville', serif;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .nav-btn:hover { background: rgba(240,232,216,0.1); }
+  .nav-btn:disabled { opacity: 0.4; cursor: default; }
+
+  .nav-centre {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .period-label {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 15px;
+    color: var(--diary-header-text);
+    font-style: italic;
+    text-align: center;
+  }
+
+  .sync-status {
+    font-family: 'Courier Prime', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: rgba(240,232,216,0.55);
+    text-align: center;
+    height: 14px;
+    transition: color 0.3s;
+  }
+  .sync-status.saving { color: #e8c88a; }
+  .sync-status.saved  { color: #a8d8a8; }
+  .sync-status.error  { color: #f09595; }
+
+  /* ── two-page spread ── */
+  .diary-pages {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    flex: 1;
+    border-left: 6px solid var(--diary-spine);
+    border-right: 6px solid var(--diary-spine);
+    box-shadow: inset 3px 0 6px rgba(0,0,0,0.12), inset -3px 0 6px rgba(0,0,0,0.12);
+  }
+
+  .page {
+    background: var(--diary-paper);
+    border-right: 1.5px solid var(--diary-spine);
+  }
+  .page:last-child { border-right: none; }
+
+  .page-top {
+    background: var(--diary-accent);
+    color: var(--diary-header-text);
+    font-family: 'Courier Prime', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--diary-spine);
+  }
+
+  /* ── day rows ── */
+  .day-row {
+    display: grid;
+    grid-template-columns: 54px 1fr;
+    border-bottom: 1px solid var(--diary-rule);
+    min-height: 56px;
+  }
+  .day-row:last-child { border-bottom: none; }
+  .day-row.today     { background: var(--diary-today-bg); }
+
+  .day-label {
+    padding: 6px 8px 4px;
+    border-right: 1px solid var(--diary-rule);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 1px;
+    user-select: none;
+  }
+
+  .day-name {
+    font-family: 'Courier Prime', monospace;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8a7a60;
+  }
+
+  .day-num {
+    font-family: 'Libre Baskerville', serif;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--diary-accent);
+  }
+  .day-row.weekend .day-num { color: var(--diary-red); }
+
+  .today-circle {
+    background: var(--diary-accent);
+    color: #faf7f2;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-family: 'Libre Baskerville', serif;
+    font-weight: 700;
+  }
+
+  .day-content {
+    padding: 5px 10px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .entry-line {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-family: 'Libre Baskerville', serif;
+    font-size: 12.5px;
+    color: var(--diary-ink);
+    outline: none;
+    line-height: 1.5;
+    border-bottom: 0.5px solid var(--diary-rule);
+    padding: 1px 2px;
+    resize: none;
+    overflow: hidden;
+    min-height: 22px;
+  }
+  .entry-line::placeholder { color: #c8bfaa; font-style: italic; font-size: 11.5px; }
+  .entry-line:focus { border-bottom-color: var(--diary-accent); background: rgba(92,61,30,0.03); }
+
+  /* ── footer ── */
+  .diary-footer {
+    background: var(--diary-header-bg);
+    color: rgba(240,232,216,0.5);
+    font-family: 'Courier Prime', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-align: center;
+    padding: 8px;
+    border-top: 2px solid var(--diary-spine);
+  }
+
+  /* ── loading overlay ── */
+  #loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--diary-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    font-family: 'Courier Prime', monospace;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    color: var(--diary-accent);
+  }
+
+  @media (max-width: 600px) {
+    .diary-pages { grid-template-columns: 1fr; }
+    .page:first-child { border-right: none; border-bottom: 3px solid var(--diary-spine); }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading-overlay">Loading diary&hellip;</div>
+
+<div class="diary-wrap">
+  <div class="diary-cover-nav">
+    <button class="nav-btn" id="btn-prev" onclick="changeWeek(-2)">&#8592; Prev</button>
+    <div class="nav-centre">
+      <div class="period-label" id="period-label"></div>
+      <div class="sync-status" id="sync-status"></div>
+    </div>
+    <button class="nav-btn" id="btn-next" onclick="changeWeek(2)">Next &#8594;</button>
+  </div>
+
+  <div class="diary-pages">
+    <div class="page">
+      <div class="page-top"><span id="week1-label"></span><span id="week1-year"></span></div>
+      <div id="week1-days"></div>
+    </div>
+    <div class="page">
+      <div class="page-top"><span id="week2-label"></span><span id="week2-year"></span></div>
+      <div id="week2-days"></div>
+    </div>
+  </div>
+
+  <div class="diary-footer">Shared Diary &mdash; <span id="footer-year"></span></div>
+</div>
+
+<script>
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxSgnLmaIH6-lpuI4Dzw0ixat2hpxiVLb86DARDPJ39A5JJk61WDJyWl0lyBuf2QkxxpQ/exec';
+
+  const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  let currentStartDate = null;
+  let entries      = {};   // { "YYYY-MM-DD": ["line1","line2"] }
+  let saveTimer    = null;
+  let pendingSaves = {};   // keys queued to push to sheet
+  let dirtyKeys    = {};   // keys typed locally but not yet confirmed saved
+  let refreshTimer = null;
+
+  /* ── helpers ── */
+  function formatKey(d) {
+    return d.getFullYear() + '-' +
+           String(d.getMonth()+1).padStart(2,'0') + '-' +
+           String(d.getDate()).padStart(2,'0');
+  }
+  function isToday(d) {
+    const t = new Date();
+    return d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear();
+  }
+  function isWeekend(d) { const day=d.getDay(); return day===0||day===6; }
+  function getMonday(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    d.setDate(d.getDate() + (day===0 ? -6 : 1-day));
+    d.setHours(0,0,0,0);
+    return d;
+  }
+  function setStatus(msg, cls) {
+    const el = document.getElementById('sync-status');
+    el.textContent = msg;
+    el.className = 'sync-status' + (cls ? ' '+cls : '');
+  }
+
+  /* ── fetch ALL entries from sheet ── */
+  async function loadAllEntries() {
+    try {
+      setStatus('Syncing\u2026');
+      const url = SCRIPT_URL + '?action=getAll&cb=' + Date.now();
+      const resp = await fetch(url);
+      const data = await resp.json();
+      if (data.ok) {
+        for (const [key, lines] of Object.entries(data.entries)) {
+          // never overwrite text the user has typed but we haven't confirmed saved yet
+          if (!pendingSaves[key] && !dirtyKeys[key]) {
+            entries[key] = lines;
+          }
+        }
+        setStatus('Up to date', 'saved');
+        setTimeout(() => setStatus(''), 2000);
+        rebuildVisible();
+      } else {
+        setStatus('Sync error', 'error');
+      }
+    } catch(e) {
+      setStatus('Offline \u2014 changes saved locally', 'error');
+    }
+    document.getElementById('loading-overlay').style.display = 'none';
+  }
+
+  /* ── push one entry to sheet ── */
+  async function pushEntry(key) {
+    const lines = entries[key] || ['',''];
+    try {
+      setStatus('Saving\u2026', 'saving');
+      const url = SCRIPT_URL
+        + '?action=set'
+        + '&key='   + encodeURIComponent(key)
+        + '&line1=' + encodeURIComponent(lines[0]||'')
+        + '&line2=' + encodeURIComponent(lines[1]||'')
+        + '&cb='    + Date.now();
+      const resp = await fetch(url);
+      const data = await resp.json();
+      if (data.ok) {
+        delete pendingSaves[key];
+        delete dirtyKeys[key];
+        setStatus('Saved', 'saved');
+        setTimeout(() => setStatus(''), 2000);
+      } else {
+        setStatus('Save failed', 'error');
+      }
+    } catch(e) {
+      setStatus('Offline \u2014 will retry', 'error');
+    }
+  }
+
+  /* ── save immediately (called on blur — important for iOS) ── */
+  function saveNow(key) {
+    clearTimeout(saveTimer);
+    if (pendingSaves[key]) pushEntry(key);
+  }
+
+  /* ── called on every keystroke, debounced 800ms ── */
+  function scheduleEntry(key, lineIdx, val) {
+    if (!entries[key]) entries[key] = ['',''];
+    entries[key][lineIdx] = val;
+    pendingSaves[key] = true;
+    dirtyKeys[key]    = true;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      Object.keys(pendingSaves).forEach(k => pushEntry(k));
+    }, 800);
+  }
+
+  /* ── build one week's rows ── */
+  function buildWeek(containerId, weekStart) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      const key     = formatKey(d);
+      const today   = isToday(d);
+      const weekend = isWeekend(d);
+      const stored  = entries[key] || ['',''];
+
+      const row = document.createElement('div');
+      row.className = 'day-row' + (today?' today':'') + (weekend?' weekend':'');
+      row.dataset.key = key;
+
+      const numDiv = document.createElement('div');
+      numDiv.className = 'day-label';
+
+      const dayName = document.createElement('div');
+      dayName.className = 'day-name';
+      dayName.textContent = DAY_NAMES[d.getDay()];
+
+      const dayNum = document.createElement('div');
+      dayNum.className = 'day-num';
+      if (today) {
+        const circle = document.createElement('div');
+        circle.className = 'today-circle';
+        circle.textContent = d.getDate();
+        dayNum.appendChild(circle);
+      } else {
+        dayNum.textContent = d.getDate();
+      }
+      numDiv.appendChild(dayName);
+      numDiv.appendChild(dayNum);
+
+      const content = document.createElement('div');
+      content.className = 'day-content';
+
+      [0,1].forEach(li => {
+        const ta = document.createElement('textarea');
+        ta.className = 'entry-line';
+        ta.rows = 1;
+        ta.placeholder = (li===0 && today) ? 'Today\u2026' : '\u2014';
+        ta.value = stored[li] || '';
+        ta.addEventListener('input', function() {
+          this.style.height = 'auto';
+          this.style.height = this.scrollHeight + 'px';
+          scheduleEntry(key, li, this.value);
+        });
+        ta.addEventListener('blur', function() { saveNow(key); });
+        ta.addEventListener('keydown', e => { if(e.key==='Enter') e.preventDefault(); });
+        content.appendChild(ta);
+      });
+
+      row.appendChild(numDiv);
+      row.appendChild(content);
+      container.appendChild(row);
+    }
+  }
+
+  /* ── rebuild just the visible textareas without re-creating DOM ── */
+  function rebuildVisible() {
+    ['week1-days','week2-days'].forEach(cid => {
+      const rows = document.getElementById(cid).querySelectorAll('.day-row');
+      rows.forEach(row => {
+        const key = row.dataset.key;
+        const stored = entries[key] || ['',''];
+        const tas = row.querySelectorAll('.entry-line');
+        tas.forEach((ta, li) => {
+          if (document.activeElement !== ta) {
+            ta.value = stored[li] || '';
+            ta.style.height = 'auto';
+            ta.style.height = ta.scrollHeight + 'px';
+          }
+        });
+      });
+    });
+  }
+
+  function getWeekLabel(start, end) {
+    if (start.getMonth()===end.getMonth()) return MONTH_NAMES[start.getMonth()];
+    return MONTH_NAMES[start.getMonth()].slice(0,3) + ' / ' + MONTH_NAMES[end.getMonth()].slice(0,3);
+  }
+
+  function render() {
+    const w1Start = new Date(currentStartDate);
+    const w1End   = new Date(w1Start); w1End.setDate(w1Start.getDate()+6);
+    const w2Start = new Date(w1Start); w2Start.setDate(w1Start.getDate()+7);
+    const w2End   = new Date(w2Start); w2End.setDate(w2Start.getDate()+6);
+
+    document.getElementById('week1-label').textContent = getWeekLabel(w1Start, w1End);
+    document.getElementById('week1-year').textContent  = w1Start.getFullYear();
+    document.getElementById('week2-label').textContent = getWeekLabel(w2Start, w2End);
+    document.getElementById('week2-year').textContent  = w2End.getFullYear();
+
+    const monthLabel = w1Start.getMonth()===w2End.getMonth()
+      ? MONTH_NAMES[w1Start.getMonth()]
+      : MONTH_NAMES[w1Start.getMonth()].slice(0,3) + '\u2013' + MONTH_NAMES[w2End.getMonth()].slice(0,3);
+
+    document.getElementById('period-label').textContent =
+      w1Start.getDate() + '\u2013' + w2End.getDate() + ' ' + monthLabel + ' ' + w2End.getFullYear();
+    document.getElementById('footer-year').textContent = w2End.getFullYear();
+
+    buildWeek('week1-days', w1Start);
+    buildWeek('week2-days', w2Start);
+  }
+
+  function changeWeek(weeks) {
+    currentStartDate.setDate(currentStartDate.getDate() + weeks*7);
+    render();
+    loadAllEntries();
+  }
+
+  /* ── auto-refresh every 60 seconds to pick up the other user's changes ── */
+  function startAutoRefresh() {
+    clearInterval(refreshTimer);
+    refreshTimer = setInterval(loadAllEntries, 20000);
+  }
+
+  /* ── boot ── */
+  currentStartDate = getMonday(new Date());
+  render();
+  loadAllEntries();
+  startAutoRefresh();
+</script>
+</body>
+</html>
